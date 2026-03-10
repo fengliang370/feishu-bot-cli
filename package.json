@@ -1,0 +1,44 @@
+{
+  "name": "feishu-bot-cli",
+  "version": "0.1.0",
+  "description": "飞书开放平台 CLI 工具 —— 一键创建飞书机器人（Webhook 回调模式）",
+  "type": "module",
+  "bin": {
+    "feishu-bot": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "feishu",
+    "lark",
+    "飞书",
+    "bot",
+    "cli",
+    "webhook",
+    "open-platform"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.59.0",
+    "@puppeteer/browsers": "^2.13.0",
+    "commander": "^12.1.0",
+    "jsqr": "^1.4.0",
+    "keytar": "^7.9.0",
+    "pngjs": "^7.0.0",
+    "puppeteer-core": "^24.35.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pngjs": "^6.0.5",
+    "@types/qrcode": "^1.5.6",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  },
+  "license": "MIT"
+}
