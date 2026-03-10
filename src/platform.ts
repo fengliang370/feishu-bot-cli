@@ -53,3 +53,8 @@ export function loginUrl(): string {
 export function appPageUrl(): string {
   return `${openBaseUrl()}/app`;
 }
+
+/** 显示名称：“飞书” 或 “Lark” */
+export function appName(): string {
+  return _platform === "lark" ? "Lark" : "飞书";
+}

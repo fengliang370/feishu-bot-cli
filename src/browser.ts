@@ -5,7 +5,7 @@ import { PNG } from "pngjs";
 import QRCode from "qrcode";
 import { getInstalledChromePath } from "./browser-install.js";
 import type { Credentials } from "./types.js";
-import { loginUrl, appPageUrl, openBaseUrl, accountsHost } from "./platform.js";
+import { loginUrl, appPageUrl, openBaseUrl, accountsHost, appName } from "./platform.js";
 
 const require = createRequire(import.meta.url);
 const jsQR = require("jsqr") as { default: typeof import("jsqr").default } | (typeof import("jsqr"));
@@ -182,8 +182,10 @@ async function printQRToTerminal(data: string): Promise<void> {
 /** 尝试切换到二维码扫码登录模式 */
 async function tryActivateQRLogin(page: Page): Promise<void> {
   const selectors = [
-    "::-p-text(扫码登录)",
-    "::-p-text(二维码登录)",
+    '.switch-login-mode-box',        // Lark 页面切换按钮
+    '::-p-text(扫码登录)',
+    '::-p-text(二维码登录)',
+    '::-p-text(Scan QR Code)',
     '[class*="qrcode-switch"]',
     '[class*="qr-switch"]',
     '[class*="scan-switch"]',
@@ -325,7 +327,7 @@ async function loginHeadlessWithQR(
   const chromePath = process.env["CHROME_PATH"] || (await findBrowser());
 
   console.log("正在启动无头浏览器...");
-  console.log("请使用飞书 APP 扫描终端中的二维码完成登录\n");
+  console.log(`请使用${appName()} APP 扫描终端中的二维码完成登录\n`);
   const browser: PuppeteerBrowser = await puppeteer.launch({
     headless: true,
     executablePath: chromePath,
@@ -354,7 +356,7 @@ async function loginHeadlessWithQR(
       );
     }
 
-    console.log("请使用飞书 APP 扫描以下二维码登录：\n");
+    console.log(`请使用${appName()} APP 扫描以下二维码登录：\n`);
     await printQRToTerminal(qrData);
     console.log("等待扫码...\n");
 
@@ -394,7 +396,7 @@ async function loginHeadlessWithQR(
             const refreshedQR = await captureQRCode(page);
             if (refreshedQR) {
               lastQR = refreshedQR;
-              console.log("请使用飞书 APP 扫描以下新二维码：\n");
+              console.log(`请使用${appName()} APP 扫描以下新二维码：\n`);
               await printQRToTerminal(refreshedQR);
               console.log("等待扫码...\n");
             }
@@ -426,7 +428,7 @@ async function loginWithBrowser(
   const chromePath = process.env["CHROME_PATH"] || (await findBrowser());
 
   console.log("正在启动 Chrome...");
-  console.log("请在浏览器中完成飞书登录，登录成功后会自动获取凭证\n");
+  console.log(`请在浏览器中完成${appName()}登录，登录成功后会自动获取凭证\n`);
 
   const browser: PuppeteerBrowser = await puppeteer.launch({
     headless: false,

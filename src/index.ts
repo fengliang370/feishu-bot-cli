@@ -100,7 +100,7 @@ program
 // create-bot
 program
   .command("create-bot")
-  .description("一键创建飞书机器人应用（Webhook 回调模式）")
+  .description("一键创建机器人应用（Webhook 回调模式）")
   .requiredOption("--webhook-url <url>", "HTTP 回调 URL（Webhook）")
   .option("-n, --name <name>", "应用名称", "bot")
   .option("-d, --desc <desc>", "应用描述")

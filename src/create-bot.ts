@@ -1,7 +1,7 @@
 import * as lark from "@larksuiteoapi/node-sdk";
 import { DEFAULT_IMAGE_BASE64 } from "./default-image.js";
 import type { Credentials, CreateBotOptions, CreateBotResult, FeishuApiResponse } from "./types.js";
-import { apiBase, openBaseUrl, appPageUrl, passportBaseUrl, getPlatform } from "./platform.js";
+import { apiBase, openBaseUrl, appPageUrl, passportBaseUrl, getPlatform, appName } from "./platform.js";
 
 // ==================== 权限 scope 名称 → ID 映射 ====================
 // ID 来源：/developers/v1/scope/applied/{appId} 接口返回
@@ -524,7 +524,7 @@ async function sendSuccessMessage(
 
   const content = JSON.stringify({
     text: [
-      "🤖 机器人创建成功！",
+      `🤖 ${appName()}机器人创建成功！`,
       "",
       `名称: ${result.name}`,
       `描述: ${result.desc}`,
@@ -607,11 +607,11 @@ export async function createBot(
   const result: CreateBotResult = { appId, appSecret, versionId, name, desc };
 
   // Step 9: 发送飞书消息通知创建者
-  console.log("[9/9] 发送飞书通知...");
+  console.log(`[9/9] 发送${appName()}通知...`);
   try {
     const openId = await transformToOpenId(creds, internalId, appId);
     await sendSuccessMessage(appId, appSecret, openId, result);
-    console.log("  已发送成功通知到飞书");
+    console.log(`  已发送成功通知到${appName()}`);
   } catch (err) {
     console.log(
       `  通知发送失败（不影响创建结果）: ${err instanceof Error ? err.message : String(err)}`
