@@ -20,7 +20,11 @@ program
 async function getCredentials(opts: {
   timeout?: string;
   browserArgs?: string;
+  gui?: boolean;
 }): Promise<Credentials> {
+  if (opts.gui) {
+    process.env["LARK_GUI"] = "1";
+  }
   const extraArgs = opts.browserArgs
     ?.split(",")
     .map((a) => a.trim())
@@ -74,6 +78,7 @@ program
   .description("列出所有应用")
   .option("-t, --timeout <seconds>", "登录超时时间（秒）", "120")
   .option("--browser-args <args>", "额外的浏览器启动参数（逗号分隔）")
+  .option("--gui", "使用 GUI 浏览器登录（默认使用终端二维码）")
   .action(async (opts) => {
     try {
       const creds = await getCredentials(opts);
@@ -95,6 +100,7 @@ program
   .option("-d, --desc <desc>", "应用描述")
   .option("-t, --timeout <seconds>", "登录超时时间（秒）", "120")
   .option("--browser-args <args>", "额外的浏览器启动参数（逗号分隔）")
+  .option("--gui", "使用 GUI 浏览器登录（默认使用终端二维码）")
   .action(async (opts) => {
     try {
       const creds = await getCredentials(opts);

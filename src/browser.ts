@@ -84,47 +84,95 @@ async function findBrowser(): Promise<string> {
 
 // ==================== 环境检测 ====================
 
-/** 检测是否为无 UI 环境（SSH、容器、云 IDE 等） */
-function isHeadlessEnvironment(): boolean {
-  if (process.env["LARK_HEADLESS"] === "1") return true;
-  if (process.env["LARK_GUI"] === "1") return false;
-
-  // SSH 连接
-  if (process.env["SSH_CLIENT"] || process.env["SSH_TTY"] || process.env["SSH_CONNECTION"]) {
-    return true;
-  }
-
-  // 容器 / 云 IDE
-  if (
-    process.env["REMOTE_CONTAINERS"] ||
-    process.env["CODESPACES"] ||
-    process.env["GITPOD_WORKSPACE_ID"] ||
-    process.env["CLOUD_SHELL"]
-  ) {
-    return true;
-  }
-
-  // Linux 无显示器
-  if (
-    process.platform === "linux" &&
-    !process.env["DISPLAY"] &&
-    !process.env["WAYLAND_DISPLAY"]
-  ) {
-    return true;
-  }
-
-  return false;
+/** 是否使用 GUI 模式（仅当用户显式指定 LARK_GUI=1 时） */
+function shouldUseGUI(): boolean {
+  return process.env["LARK_GUI"] === "1";
 }
 
 // ==================== 二维码相关 ====================
 
-/** 从页面截图中提取二维码数据 */
+/** 从页面提取二维码数据（canvas.toDataURL → 元素截图 → 全页截图） */
 async function captureQRCode(page: Page): Promise<string | null> {
-  const screenshot = (await page.screenshot()) as Buffer;
-  const png = PNG.sync.read(screenshot);
   const decode = typeof jsQR === "function" ? jsQR : (jsQR as { default: Function }).default;
-  const code = decode(new Uint8ClampedArray(png.data), png.width, png.height);
-  return code?.data ?? null;
+
+  // 方法1: 通过 canvas.toDataURL() 直接获取二维码图像数据
+  const canvasSelectors = [
+    '.newLogin_scan-QR-code canvas',
+    '.new-scan-qrcode-container canvas',
+    '[class*="qr"] canvas',
+    'canvas',
+  ];
+
+  for (const selector of canvasSelectors) {
+    try {
+      const dataUrl = await page.evaluate((sel) => {
+        const canvas = document.querySelector(sel) as HTMLCanvasElement | null;
+        if (!canvas || canvas.width < 50) return null;
+        return canvas.toDataURL('image/png');
+      }, selector);
+
+      if (dataUrl) {
+        const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+        const pngBuf = Buffer.from(base64, 'base64');
+        const png = PNG.sync.read(pngBuf);
+        const code = decode(new Uint8ClampedArray(png.data), png.width, png.height);
+        if (code?.data) {
+          if (process.env["DEBUG"]) {
+            console.error(`[DEBUG] QR found via canvas.toDataURL: ${selector}`);
+          }
+          return code.data;
+        }
+      }
+    } catch {
+      // 继续尝试下一个选择器
+    }
+  }
+
+  // 方法2: 元素级截图（适用于 img 元素）
+  const imgSelectors = [
+    '.newLogin_scan-QR-code img',
+    '[class*="qrcode"] img',
+    '[class*="qr-code"] img',
+    'img[class*="qrcode"]',
+  ];
+
+  for (const selector of imgSelectors) {
+    try {
+      const el = await page.$(selector);
+      if (el) {
+        const shot = Buffer.from((await el.screenshot()) as Uint8Array);
+        const png = PNG.sync.read(shot);
+        const code = decode(new Uint8ClampedArray(png.data), png.width, png.height);
+        if (code?.data) {
+          if (process.env["DEBUG"]) {
+            console.error(`[DEBUG] QR found via element screenshot: ${selector}`);
+          }
+          return code.data;
+        }
+      }
+    } catch {
+      // 继续尝试
+    }
+  }
+
+  // 方法3: 全页截图后解码（回退方案）
+  try {
+    const screenshot = Buffer.from((await page.screenshot()) as Uint8Array);
+    const png = PNG.sync.read(screenshot);
+    const code = decode(new Uint8ClampedArray(png.data), png.width, png.height);
+    if (code?.data) {
+      if (process.env["DEBUG"]) {
+        console.error("[DEBUG] QR found via full page screenshot");
+      }
+      return code.data;
+    }
+  } catch (err) {
+    if (process.env["DEBUG"]) {
+      console.error(`[DEBUG] Full page QR extraction failed: ${err}`);
+    }
+  }
+
+  return null;
 }
 
 /** 在终端打印二维码 */
@@ -271,16 +319,15 @@ async function captureCredentials(page: Page): Promise<Credentials> {
 
 // ==================== 登录入口 ====================
 
-/** 无 UI 环境：无头浏览器 + 终端二维码扫码登录 */
+/** 终端二维码扫码登录（默认模式，无需 GUI） */
 async function loginHeadlessWithQR(
   timeout: number,
   extraBrowserArgs?: string[]
 ): Promise<Credentials> {
   const chromePath = process.env["CHROME_PATH"] || (await findBrowser());
 
-  console.log("检测到无 UI 环境，将使用二维码扫码方式登录");
-  console.log("正在启动无头浏览器...\n");
-
+  console.log("正在启动无头浏览器...");
+  console.log("请使用飞书 APP 扫描终端中的二维码完成登录\n");
   const browser: PuppeteerBrowser = await puppeteer.launch({
     headless: true,
     executablePath: chromePath,
@@ -406,14 +453,14 @@ async function loginWithBrowser(
 
 /**
  * 启动浏览器让用户登录，并捕获凭证（cookies + CSRF token）
- * 自动检测环境：有 UI 时打开 Chrome，无 UI 时使用终端二维码
+ * 默认使用终端二维码模式（headless），设置 LARK_GUI=1 或传入 --gui 切换为 GUI 浏览器
  */
 export async function loginAndCapture(
   timeoutMs: number = DEFAULT_LOGIN_TIMEOUT,
   extraBrowserArgs?: string[]
 ): Promise<Credentials> {
-  if (isHeadlessEnvironment()) {
-    return loginHeadlessWithQR(timeoutMs, extraBrowserArgs);
+  if (shouldUseGUI()) {
+    return loginWithBrowser(timeoutMs, extraBrowserArgs);
   }
-  return loginWithBrowser(timeoutMs, extraBrowserArgs);
+  return loginHeadlessWithQR(timeoutMs, extraBrowserArgs);
 }
