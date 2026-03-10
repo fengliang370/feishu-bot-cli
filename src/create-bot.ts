@@ -1,8 +1,7 @@
 import * as lark from "@larksuiteoapi/node-sdk";
 import { DEFAULT_IMAGE_BASE64 } from "./default-image.js";
 import type { Credentials, CreateBotOptions, CreateBotResult, FeishuApiResponse } from "./types.js";
-
-const BASE = "https://open.feishu.cn/developers/v1";
+import { apiBase, openBaseUrl, appPageUrl, passportBaseUrl, getPlatform } from "./platform.js";
 
 // ==================== 权限 scope 名称 → ID 映射 ====================
 // ID 来源：/developers/v1/scope/applied/{appId} 接口返回
@@ -151,8 +150,8 @@ function makeHeaders(creds: Credentials): Record<string, string> {
     Cookie: cookie,
     "x-csrf-token": creds.csrfToken,
     "x-timezone-offset": "-480",
-    Origin: "https://open.feishu.cn",
-    Referer: "https://open.feishu.cn/app",
+    Origin: openBaseUrl(),
+    Referer: appPageUrl(),
     "User-Agent":
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
   };
@@ -163,7 +162,7 @@ async function post<T = unknown>(
   path: string,
   body: Record<string, unknown> = {}
 ): Promise<FeishuApiResponse<T>> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${apiBase()}${path}`, {
     method: "POST",
     headers: makeHeaders(creds),
     body: JSON.stringify(body),
@@ -227,7 +226,7 @@ async function postVerbose<T = unknown>(
   body: Record<string, unknown>,
   label: string
 ): Promise<FeishuApiResponse<T>> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${apiBase()}${path}`, {
     method: "POST",
     headers: makeHeaders(creds),
     body: JSON.stringify(body),
@@ -259,7 +258,7 @@ async function uploadImage(creds: Credentials): Promise<string> {
   const headers = makeHeaders(creds);
   delete headers["Content-Type"]; // 让 fetch 自动设置 multipart boundary
 
-  const res = await fetch(`${BASE}/app/upload/image`, {
+  const res = await fetch(`${apiBase()}/app/upload/image`, {
     method: "POST",
     headers,
     body: form,
@@ -409,7 +408,7 @@ async function addEventSubscription(creds: Credentials, appId: string): Promise<
 
 /** 获取当前登录用户的内部 user ID（从 passport 接口） */
 async function getCreatorInternalId(creds: Credentials): Promise<string> {
-  const url = `https://passport.feishu.cn/accounts/web/user?app_id=7&support_anonymous=0&_t=${Date.now()}`;
+  const url = `${passportBaseUrl()}/accounts/web/user?app_id=7&support_anonymous=0&_t=${Date.now()}`;
 
   const res = await fetch(url, {
     headers: {
@@ -418,8 +417,8 @@ async function getCreatorInternalId(creds: Credentials): Promise<string> {
       "X-Api-Version": "1.0.28",
       "X-App-Id": "7",
       "X-Device-Info": "platform=websdk",
-      Origin: "https://open.feishu.cn",
-      Referer: "https://open.feishu.cn/",
+      Origin: openBaseUrl(),
+      Referer: `${openBaseUrl()}/`,
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
     },
@@ -490,7 +489,7 @@ async function transformToOpenId(
   internalId: string,
   clientId: string
 ): Promise<string> {
-  const res = await fetch("https://open.feishu.cn/api_explorer/v1/resource_id/transform", {
+  const res = await fetch(`${openBaseUrl()}/api_explorer/v1/resource_id/transform`, {
     method: "POST",
     headers: makeHeaders(creds),
     body: JSON.stringify({
@@ -520,7 +519,7 @@ async function sendSuccessMessage(
   const client = new lark.Client({
     appId,
     appSecret,
-    domain: lark.Domain.Feishu,
+    domain: getPlatform() === "lark" ? lark.Domain.Lark : lark.Domain.Feishu,
   });
 
   const content = JSON.stringify({
@@ -531,8 +530,8 @@ async function sendSuccessMessage(
       `描述: ${result.desc}`,
       `App ID: ${result.appId}`,
       `App Secret: ${result.appSecret}`,
-      `应用链接: https://open.feishu.cn/app/${result.appId}`,
-      `版本链接: https://open.feishu.cn/app/${result.appId}/version/${result.versionId}`,
+      `应用链接: ${openBaseUrl()}/app/${result.appId}`,
+      `版本链接: ${openBaseUrl()}/app/${result.appId}/version/${result.versionId}`,
     ].join("\n"),
   });
 
@@ -576,7 +575,7 @@ export async function createBot(
   console.log(`[2/9] 创建应用 "${name}"...`);
   const appId = await createApp(creds, name, desc, avatar);
   console.log(`  App ID: ${appId}`);
-  console.log(`  https://open.feishu.cn/app/${appId}`);
+  console.log(`  ${openBaseUrl()}/app/${appId}`);
 
   // Step 3: 获取 App Secret
   console.log("[3/9] 获取 App Secret...");

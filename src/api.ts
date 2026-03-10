@@ -1,6 +1,5 @@
 import type { Credentials, AppInfo, FeishuApiResponse } from "./types.js";
-
-const APP_LIST_URL = "https://open.feishu.cn/developers/v1/app/list";
+import { apiBase, openBaseUrl, appPageUrl } from "./platform.js";
 const PAGE_SIZE = 50;
 
 interface AppListData {
@@ -38,15 +37,15 @@ async function fetchAppList(
   cursor: number,
   count: number
 ): Promise<FeishuApiResponse<AppListData>> {
-  const response = await fetch(APP_LIST_URL, {
+  const response = await fetch(`${apiBase()}/app/list`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Cookie: creds.cookieString,
       "x-csrf-token": creds.csrfToken,
       "x-timezone-offset": "-480",
-      Origin: "https://open.feishu.cn",
-      Referer: "https://open.feishu.cn/app",
+      Origin: openBaseUrl(),
+      Referer: appPageUrl(),
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
     },

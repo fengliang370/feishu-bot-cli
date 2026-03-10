@@ -6,12 +6,13 @@ import { fetchAllApps } from "./api.js";
 import { createBot } from "./create-bot.js";
 import { downloadChrome, getInstalledChromePath } from "./browser-install.js";
 import type { Credentials, AppInfo } from "./types.js";
-
+import { setPlatform } from "./platform.js";
+import { openBaseUrl } from "./platform.js";
 const program = new Command();
 
 program
   .name("feishu-bot")
-  .description("飞书开放平台 CLI 工具 —— 一键创建飞书机器人")
+  .description("飞书 / Lark 开放平台 CLI 工具 —— 一键创建机器人")
   .version("0.1.0");
 
 // ==================== 辅助函数 ====================
@@ -21,7 +22,11 @@ async function getCredentials(opts: {
   timeout?: string;
   browserArgs?: string;
   gui?: boolean;
+  lark?: boolean;
 }): Promise<Credentials> {
+  if (opts.lark) {
+    setPlatform("lark");
+  }
   if (opts.gui) {
     process.env["LARK_GUI"] = "1";
   }
@@ -79,6 +84,7 @@ program
   .option("-t, --timeout <seconds>", "登录超时时间（秒）", "120")
   .option("--browser-args <args>", "额外的浏览器启动参数（逗号分隔）")
   .option("--gui", "使用 GUI 浏览器登录（默认使用终端二维码）")
+  .option("--lark", "使用 Lark（海外版）而非飞书")
   .action(async (opts) => {
     try {
       const creds = await getCredentials(opts);
@@ -101,6 +107,7 @@ program
   .option("-t, --timeout <seconds>", "登录超时时间（秒）", "120")
   .option("--browser-args <args>", "额外的浏览器启动参数（逗号分隔）")
   .option("--gui", "使用 GUI 浏览器登录（默认使用终端二维码）")
+  .option("--lark", "使用 Lark（海外版）而非飞书")
   .action(async (opts) => {
     try {
       const creds = await getCredentials(opts);
@@ -116,9 +123,9 @@ program
       console.log(`  描述:       ${result.desc}`);
       console.log(`  App ID:     ${result.appId}`);
       console.log(`  App Secret: ${result.appSecret}`);
-      console.log(`  应用链接:   https://open.feishu.cn/app/${result.appId}`);
+      console.log(`  应用链接:   ${openBaseUrl()}/app/${result.appId}`);
       console.log(
-        `  版本链接:   https://open.feishu.cn/app/${result.appId}/version/${result.versionId}`
+        `  版本链接:   ${openBaseUrl()}/app/${result.appId}/version/${result.versionId}`
       );
       console.log("=".repeat(60));
       process.exit(0);

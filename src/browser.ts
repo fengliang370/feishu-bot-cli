@@ -5,15 +5,13 @@ import { PNG } from "pngjs";
 import QRCode from "qrcode";
 import { getInstalledChromePath } from "./browser-install.js";
 import type { Credentials } from "./types.js";
+import { loginUrl, appPageUrl, openBaseUrl, accountsHost } from "./platform.js";
 
 const require = createRequire(import.meta.url);
 const jsQR = require("jsqr") as { default: typeof import("jsqr").default } | (typeof import("jsqr"));
 
 // ==================== 常量 ====================
 
-const LOGIN_URL =
-  "https://accounts.feishu.cn/accounts/page/login?app_id=7&no_trap=1&redirect_uri=https%3A%2F%2Fopen.feishu.cn%2F";
-const APP_PAGE_URL = "https://open.feishu.cn/app";
 const APP_LIST_API_PATH = "/developers/v1/app/list";
 const DEFAULT_LOGIN_TIMEOUT = 2 * 60 * 1000;
 const QR_REFRESH_INTERVAL = 60_000;
@@ -214,8 +212,8 @@ async function waitForLogin(page: Page, timeout: number): Promise<void> {
 
   while (Date.now() - startTime < timeout) {
     const url = page.url();
-    if (url.includes("open.feishu.cn")) {
-      const cookies = await page.cookies("https://open.feishu.cn");
+    if (url.includes(openBaseUrl().replace("https://", ""))) {
+      const cookies = await page.cookies(openBaseUrl());
       if (cookies.some((c) => c.name === "session")) {
         return;
       }
@@ -268,7 +266,7 @@ async function captureCredentials(page: Page): Promise<Credentials> {
   });
 
   // 导航到应用列表页，触发 API 请求
-  await page.goto(APP_PAGE_URL, { waitUntil: "networkidle2" });
+  await page.goto(appPageUrl(), { waitUntil: "networkidle2" });
   let csrfToken = await csrfPromise;
 
   // fallback：尝试从页面 JS 中读取
@@ -280,7 +278,7 @@ async function captureCredentials(page: Page): Promise<Credentials> {
   }
 
   // 获取 puppeteer 能拿到的 cookies（这些是 path=/ 的通用 cookie）
-  const cookies = await page.cookies("https://open.feishu.cn");
+  const cookies = await page.cookies(openBaseUrl());
   let cookieString = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
 
   // 关键：从拦截的请求中合并 puppeteer 捕获不到的 cookie（特定 path 的）
@@ -337,7 +335,7 @@ async function loginHeadlessWithQR(
 
   try {
     const page = await browser.newPage();
-    await page.goto(LOGIN_URL, { waitUntil: "networkidle2" });
+    await page.goto(loginUrl(), { waitUntil: "networkidle2" });
 
     // 等待页面渲染完成
     await new Promise((r) => setTimeout(r, 2000));
@@ -368,8 +366,8 @@ async function loginHeadlessWithQR(
     while (Date.now() - startTime < timeout) {
       // 检测是否已登录
       const url = page.url();
-      if (url.includes("open.feishu.cn")) {
-        const cookies = await page.cookies("https://open.feishu.cn");
+      if (url.includes(openBaseUrl().replace("https://", ""))) {
+        const cookies = await page.cookies(openBaseUrl());
         if (cookies.some((c) => c.name === "session")) {
           break;
         }
@@ -377,7 +375,7 @@ async function loginHeadlessWithQR(
 
       // 仍在登录页时定期检查二维码是否刷新
       if (
-        url.includes("accounts.feishu.cn") &&
+        url.includes(accountsHost()) &&
         Date.now() - lastQRCheck > QR_REFRESH_INTERVAL
       ) {
         lastQRCheck = Date.now();
@@ -391,7 +389,7 @@ async function loginHeadlessWithQR(
           } else if (!newQR) {
             // 二维码可能已过期，刷新页面
             console.log("\n二维码可能已过期，正在刷新...\n");
-            await page.goto(LOGIN_URL, { waitUntil: "networkidle2" });
+            await page.goto(loginUrl(), { waitUntil: "networkidle2" });
             await new Promise((r) => setTimeout(r, 2000));
             const refreshedQR = await captureQRCode(page);
             if (refreshedQR) {
@@ -439,7 +437,7 @@ async function loginWithBrowser(
 
   try {
     const page = await browser.newPage();
-    await page.goto(LOGIN_URL, { waitUntil: "networkidle2" });
+    await page.goto(loginUrl(), { waitUntil: "networkidle2" });
 
     console.log("等待登录完成...");
     await waitForLogin(page, timeout);
