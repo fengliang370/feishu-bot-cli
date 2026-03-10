@@ -23,10 +23,7 @@
 # 安装依赖
 npm install
 
-# 登录飞书开放平台
-npx tsx src/index.ts login
-
-# 一键创建机器人
+# 一键创建机器人（每次运行自动弹出浏览器登录 / 终端二维码扫码）
 ./run.sh "<webhook_url>" "机器人名称" "机器人描述"
 ```
 
@@ -67,14 +64,12 @@ npx tsx src/index.ts login
 
 ## 命令
 
-### `feishu-bot login`
+### 登录
 
-登录飞书开放平台。
+每次运行命令时自动触发登录，不持久化凭证。
 
 - **有 UI 环境**：自动打开 Chrome/Edge，在浏览器中完成登录
 - **无 UI 环境**（SSH、容器、云 IDE）：启动无头浏览器，在终端打印二维码，使用飞书 APP 扫码登录
-
-登录凭证保存到系统 Keychain（macOS）或本地文件 `~/.feishu-bot-cli/credentials.json`。
 
 ### `feishu-bot create-bot`
 
@@ -101,15 +96,7 @@ feishu-bot create-bot --webhook-url "<url>" --name "机器人名称" --desc "描
 
 ### `feishu-bot apps`
 
-列出当前账号下的所有应用。未登录时自动触发登录流程。
-
-### `feishu-bot install-browser`
-
-下载 Chrome for Testing 到本地缓存（`~/.feishu-bot-cli/browsers/`）。适用于服务器等没有预装浏览器的环境。
-
-### `feishu-bot logout`
-
-清除已保存的登录凭证。
+列出当前账号下的所有应用。
 
 ## 环境变量
 
@@ -137,7 +124,6 @@ src/
   types.ts            # 类型定义
   browser.ts          # 浏览器登录（GUI + 无头二维码）
   browser-install.ts  # Chrome for Testing 下载管理
-  credentials.ts      # 凭证存储（Keychain / 文件）
   api.ts              # 应用列表 API
   create-bot.ts       # 一键创建机器人（9 步流程）
   default-image.ts    # 默认应用图标
@@ -148,7 +134,7 @@ run.sh                # 快捷脚本
 
 ```bash
 npm install
-npx tsx src/index.ts login         # 开发模式运行
+npx tsx src/index.ts apps           # 查看应用列表
 npm run build                      # 编译 TypeScript
 ```
 

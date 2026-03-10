@@ -28,7 +28,6 @@
     "@puppeteer/browsers": "^2.13.0",
     "commander": "^12.1.0",
     "jsqr": "^1.4.0",
-    "keytar": "^7.9.0",
     "pngjs": "^7.0.0",
     "puppeteer-core": "^24.35.0",
     "qrcode": "^1.5.4"

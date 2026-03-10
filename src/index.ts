@@ -2,12 +2,6 @@
 
 import { Command } from "commander";
 import { loginAndCapture } from "./browser.js";
-import {
-  saveCredentials,
-  loadCredentials,
-  clearCredentials,
-  getStorageType,
-} from "./credentials.js";
 import { fetchAllApps } from "./api.js";
 import { createBot } from "./create-bot.js";
 import { downloadChrome, getInstalledChromePath } from "./browser-install.js";
@@ -22,24 +16,16 @@ program
 
 // ==================== 辅助函数 ====================
 
-/** 确保已登录，未登录则自动触发登录流程 */
-async function ensureCredentials(opts: {
+/** 每次运行都重新登录获取凭证 */
+async function getCredentials(opts: {
   timeout?: string;
   browserArgs?: string;
 }): Promise<Credentials> {
-  let creds = await loadCredentials();
-
-  if (!creds) {
-    console.log("未找到登录信息，请先登录...\n");
-    const extraArgs = opts.browserArgs
-      ?.split(",")
-      .map((a) => a.trim())
-      .filter(Boolean);
-    creds = await loginAndCapture(Number(opts.timeout || "120") * 1000, extraArgs);
-    await saveCredentials(creds);
-  }
-
-  return creds;
+  const extraArgs = opts.browserArgs
+    ?.split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
+  return loginAndCapture(Number(opts.timeout || "120") * 1000, extraArgs);
 }
 
 function getStatusText(status: number): string {
@@ -82,29 +68,6 @@ function printApps(apps: AppInfo[]): void {
 
 // ==================== 命令注册 ====================
 
-// login
-program
-  .command("login")
-  .description("登录飞书开放平台（打开 Chrome 浏览器）")
-  .option("-t, --timeout <seconds>", "登录超时时间（秒）", "120")
-  .option("--browser-args <args>", "额外的浏览器启动参数（逗号分隔）")
-  .action(async (opts) => {
-    try {
-      const extraArgs = opts.browserArgs
-        ?.split(",")
-        .map((a: string) => a.trim())
-        .filter(Boolean);
-      const creds = await loginAndCapture(Number(opts.timeout) * 1000, extraArgs);
-      await saveCredentials(creds);
-      console.log(
-        `\n登录信息已保存至${getStorageType()}，可以使用 feishu-bot apps 查看应用列表`
-      );
-    } catch (err) {
-      console.error("登录失败:", err instanceof Error ? err.message : String(err));
-      process.exit(1);
-    }
-  });
-
 // apps
 program
   .command("apps")
@@ -113,13 +76,12 @@ program
   .option("--browser-args <args>", "额外的浏览器启动参数（逗号分隔）")
   .action(async (opts) => {
     try {
-      const creds = await ensureCredentials(opts);
+      const creds = await getCredentials(opts);
       const apps = await fetchAllApps(creds);
       printApps(apps);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`\n获取应用列表失败: ${msg}`);
-      console.error("请尝试重新登录: feishu-bot login");
       process.exit(1);
     }
   });
@@ -135,7 +97,7 @@ program
   .option("--browser-args <args>", "额外的浏览器启动参数（逗号分隔）")
   .action(async (opts) => {
     try {
-      const creds = await ensureCredentials(opts);
+      const creds = await getCredentials(opts);
       const name = opts.name as string;
       const desc = (opts.desc as string) || name;
       const webhookUrl = opts.webhookUrl as string;
@@ -179,15 +141,6 @@ program
       console.error("下载失败:", err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
-  });
-
-// logout
-program
-  .command("logout")
-  .description("清除已保存的登录信息")
-  .action(async () => {
-    await clearCredentials();
-    console.log("登录信息已清除");
   });
 
 program.parse();
